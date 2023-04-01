@@ -1,0 +1,9 @@
+tests:
+  - description: "The plugin should be imported smootly in Kotlin Js projects"
+    configuration:
+      tasks: &tasks
+        - 'tasks'
+      options:
+        - '--stacktrace'
+    expectation:
+      success: *tasks
