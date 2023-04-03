@@ -3,6 +3,7 @@ package org.danilopianini.gradle.mavencentral
 import io.github.gradlenexus.publishplugin.internal.StagingRepository
 import org.danilopianini.gradle.mavencentral.ProjectExtensions.registerTaskIfNeeded
 import org.gradle.api.DefaultTask
+import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.provider.Property
 import org.gradle.api.publish.PublishingExtension
@@ -18,6 +19,7 @@ import org.gradle.kotlin.dsl.withType
 import org.gradle.plugins.signing.Sign
 import org.gradle.plugins.signing.SigningExtension
 import java.net.URI
+import java.util.EnumSet
 
 internal inline fun <reified T> Project.propertyWithDefault(default: T?): Property<T> =
     objects.property<T>().apply { convention(default) }
@@ -100,7 +102,7 @@ private fun Project.configureNexusRepository(repoToConfigure: Repository, nexusU
         "createNexusClientFor${repoToConfigure.name}",
         repoToConfigure,
         nexusUrl,
-    ) as InitializeNexusClient
+    )
     /*
      * Creates a new staging repository on the Nexus server, or fetches an existing one if the repoId is known.
      */
@@ -245,7 +247,24 @@ private fun Project.warnIfCredentialsAreMissing(repository: Repository) {
 }
 
 /**
- * Returns the signign tasks registered for the [MavenPublication] in the current [project].
+ * Returns the signing tasks registered for the [MavenPublication] in the current [project].
  */
 fun MavenPublication.signingTasks(project: Project): Collection<Sign> =
     project.tasks.withType<Sign>().matching { it.name.endsWith("sign${name.capitalized()}Publication") }
+
+/**
+ * Executes the given [action] for each Kotlin plugin (among the ones in [plugins]) applied to the project.
+ */
+fun Project.withKotlinPlugins(plugins: EnumSet<KotlinProjectType>, action: (KotlinProjectType, Plugin<Any>) -> Unit) {
+    for (plugin in plugins) {
+        this.plugins.withId(plugin.pluginId) {
+            action(plugin, it)
+        }
+    }
+}
+
+/**
+ * Executes the given [action] for each Kotlin plugin (among the ones in [plugins]) applied to the project.
+ */
+fun Project.withKotlinPlugins(vararg plugins: KotlinProjectType, action: (KotlinProjectType, Plugin<Any>) -> Unit) =
+    withKotlinPlugins(EnumSet.copyOf(listOf(*plugins)), action)

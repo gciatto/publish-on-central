@@ -1,5 +1,8 @@
 package org.danilopianini.gradle.mavencentral
 
+import org.danilopianini.gradle.mavencentral.KotlinProjectType.JS
+import org.danilopianini.gradle.mavencentral.KotlinProjectType.JVM
+import org.danilopianini.gradle.mavencentral.KotlinProjectType.MULTI_PLATFORM
 import org.danilopianini.gradle.mavencentral.ProjectExtensions.configureExtension
 import org.danilopianini.gradle.mavencentral.ProjectExtensions.createExtension
 import org.danilopianini.gradle.mavencentral.ProjectExtensions.registerTaskIfNeeded
@@ -14,6 +17,7 @@ import org.gradle.kotlin.dsl.configure
 import org.gradle.kotlin.dsl.withType
 import org.gradle.plugins.signing.SigningExtension
 import org.gradle.plugins.signing.SigningPlugin
+import org.jetbrains.kotlin.gradle.dsl.KotlinJsProjectExtension
 
 /**
  * A Plugin configuring the project for publishing on Maven Central.
@@ -26,13 +30,32 @@ class PublishOnCentral : Plugin<Project> {
         private const val publicationName = "OSSRH"
     }
 
+    private fun SourceJar.addJsSourceSetsFrom(project: Project) {
+        project.configureExtension<KotlinJsProjectExtension> {
+            js {
+                sourceSets.getByName("main") {
+                    this@addJsSourceSetsFrom.sourceSet(it.kotlin)
+                    this@addJsSourceSetsFrom.sourceSet(it.resources)
+                }
+            }
+        }
+    }
+
     override fun apply(project: Project) {
         project.plugins.apply(MavenPublishPlugin::class.java)
         project.plugins.apply(SigningPlugin::class.java)
         val extension = project.createExtension<PublishOnCentralExtension>("publishOnCentral", project)
         val createdPublications = mutableListOf<MavenPublication>()
         project.configureExtension<PublishingExtension> {
-            val sourcesJarTask = project.registerTaskIfNeeded<SourceJar>("sourcesJar")
+            val sourcesJarTask = project.registerTaskIfNeeded<SourceJar>("sourcesJar") {
+                project.withKotlinPlugins(MULTI_PLATFORM, JVM, JS) { type, _ ->
+                    if (type == JS) {
+                        addJsSourceSetsFrom(project)
+                    } else {
+                        sourceSet("main", false)
+                    }
+                }
+            }
             val javadocJarTask = project.registerTaskIfNeeded<JavadocJar>("javadocJar")
             project.tasks.matching { it.name == "assemble" }.configureEach {
                 it.dependsOn(sourcesJarTask, javadocJarTask)

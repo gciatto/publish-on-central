@@ -15,7 +15,6 @@ internal object ProjectExtensions {
     inline fun <reified T : Task> Project.registerTaskIfNeeded(
         name: String,
         vararg parameters: Any = emptyArray(),
-        noinline configuration: Task.() -> Unit = { }
-    ): Task =
-        tasks.findByName(name) ?: tasks.register<T>(name, *parameters).get().apply(configuration)
+        noinline configuration: T.() -> Unit = { }
+    ): T = (tasks.findByName(name) as? T) ?: tasks.register<T>(name, *parameters).get().apply(configuration)
 }
